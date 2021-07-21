@@ -98,6 +98,7 @@ import {
   getVoltage,
 } from "@/http/api";
 import { mapState, mapMutations } from "vuex";
+import axios from "axios";
 export default {
   name: "Main",
   data() {
@@ -386,6 +387,9 @@ export default {
       this.$nextTick(() => {
         this.getNavList();
         this.getElectric();
+        axios.get("http://116.236.30.222:9800/energy/detector/findByBuilding/3").then(res => {
+          console.log(res.data.data);
+        })
       });
     });
   },
