@@ -1,54 +1,87 @@
 <template>
   <div class="yz-wrapper">
     <div class="yz-header">
-      <img class="yz-header-img" :src="require('@/assets/img/header.png')" alt="">
+      <img
+        class="yz-header-img"
+        :src="require('@/assets/img/header.png')"
+        alt=""
+      />
       <div class="back">
-        <img class="back-icon" src="@/assets/img/back.png" alt="">
-        <span class="back-title">返回大屏</span>
+        <img class="back-icon" src="@/assets/img/back.png" alt="" />
+        <a href="http://116.236.30.222:9404" class="back-title">返回大屏</a>
       </div>
     </div>
     <div class="yz-main">
       <div class="yz-aside">
         <el-menu
           v-if="navList.length"
-          :default-active="'a' + navList[0].id"
+          :default-active="'a' + navList[0][0].id"
+          unique-opened
           class="el-menu-vertical-demo"
           background-color="transparent"
           text-color="#fff"
           active-text-color="#ffd04b"
         >
-          <el-menu-item
+          <el-submenu
+            :index="item[0].number"
             v-for="item of navList"
-            :key="item.id"
-            :index="'a' + item.id"
-            @click="changeLocation(item.id)"
+            :key="item[0].number"
           >
-            <i class="el-icon-menu"></i>
-            <span slot="title">{{
-              item.name + " " + item.floorNum + " 层"
-            }}</span>
-          </el-menu-item>
+            <template slot="title">
+              <img
+                class="nav-icon1"
+                src="@/assets/img/building-icon.png"
+                alt=""
+              />
+              <span class="nav-title1">{{ item[0].name }}</span>
+            </template>
+            <el-menu-item
+              v-for="i of item"
+              :key="i.id"
+              :index="'a' + i.id"
+              @click="changeLocation(i.id)"
+            >
+              <span slot="title">{{ i.name + " " + i.floorNum + " 层" }}</span>
+            </el-menu-item>
+          </el-submenu>
         </el-menu>
       </div>
       <div class="yz-right">
         <div class="condition">
           <div class="power-type-wrapper">
-            <span class="power-type-item" v-for="item of lineTypeList" :key="item.type" @click="changeLineType(item.type)">{{item.title}}</span>
+            <span
+              class="power-type-item"
+              :class="{ active: item.type === lineType }"
+              v-for="item of lineTypeList"
+              :key="item.type"
+              @click="changeLineType(item.type)"
+              >{{ item.title }}</span
+            >
           </div>
           <el-date-picker
-            v-model="value2"
+            v-model="dateList"
+            type="daterange"
             align="right"
-            type="date"
-            placeholder="选择日期"
-            :picker-options="pickerOptions"
+            unlink-panels
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
             @change="changeDate"
+            format="yyyy-MM-dd"
+            value-format="yyyy-MM-dd"
           >
           </el-date-picker>
         </div>
         <div class="line">
-          <img src="@/assets/img/line.png" alt="">
+          <img src="@/assets/img/line.png" alt="" />
         </div>
-        <div class="echarts-wrapper">
+        <div
+          class="echarts-wrapper"
+          v-loading="loading"
+          element-loading-text="拼命加载中"
+          element-loading-spinner="el-icon-loading"
+          element-loading-background="rgba(0, 0, 0, 0.5)"
+        >
           <div class="echarts-box" ref="echarts" id="echarts-box"></div>
         </div>
       </div>
@@ -75,51 +108,21 @@ export default {
       lineTypeList: [
         {
           type: "electric",
-          title: "电流"
+          title: "电流",
         },
         {
           type: "voltage",
-          title: "电压"
+          title: "电压",
         },
         {
           type: "temperature",
-          title: "温度"
+          title: "温度",
         },
       ],
       dId: "1",
-      startDate: "2021-06-30",
-      endDate: "2021-07-19",
+      dateList: [],
       dataList: {},
-      pickerOptions: {
-        disabledDate(time) {
-          return time.getTime() > Date.now();
-        },
-        shortcuts: [
-          {
-            text: "今天",
-            onClick(picker) {
-              picker.$emit("pick", new Date());
-            },
-          },
-          {
-            text: "昨天",
-            onClick(picker) {
-              const date = new Date();
-              date.setTime(date.getTime() - 3600 * 1000 * 24);
-              picker.$emit("pick", date);
-            },
-          },
-          {
-            text: "一周前",
-            onClick(picker) {
-              const date = new Date();
-              date.setTime(date.getTime() - 3600 * 1000 * 24 * 7);
-              picker.$emit("pick", date);
-            },
-          },
-        ],
-      },
-      value2: new Date(),
+      loading: false,
     };
   },
   computed: {
@@ -149,39 +152,61 @@ export default {
     getNavList() {
       getNavList().then((res) => {
         if (res.success) {
-          this.navList = res.data;
-          this.dId = this.navList[0].id;
+          let list1 = [];
+          let list2 = [];
+          for (let i = 0; i < res.data.length; i++) {
+            if (res.data[i].number === "6") {
+              list1.push(res.data[i]);
+            }
+            if (res.data[i].number === "7") {
+              list2.push(res.data[i]);
+            }
+          }
+          this.navList = [list1, list2];
+          this.dId = this.navList[0][0].id;
         }
       });
     },
     getElectric() {
+      this.loading = true;
       getElectric({
         dId: this.dId,
-        endDate: this.endDate,
-        startDate: this.startDate,
+        endDate: this.dateList[1],
+        startDate: this.dateList[0],
       }).then((res) => {
-        this.dataList = res.data;
-        this.drawEcharts();
+        if (res.success) {
+          this.loading = false;
+          this.dataList = res.data;
+          this.drawEcharts();
+        }
       });
     },
     getTemplate() {
+      this.loading = true;
       getTemplate({
         dId: this.dId,
-        endDate: this.endDate,
-        startDate: this.startDate,
+        endDate: this.dateList[1],
+        startDate: this.dateList[0],
       }).then((res) => {
-        this.dataList = res.data;
-        this.drawEcharts();
+        if (res.success) {
+          this.loading = false;
+          this.dataList = res.data;
+          this.drawEcharts();
+        }
       });
     },
     getVoltage() {
+      this.loading = true;
       getVoltage({
         dId: this.dId,
-        endDate: this.endDate,
-        startDate: this.startDate,
+        endDate: this.dateList[1],
+        startDate: this.dateList[0],
       }).then((res) => {
-        this.dataList = res.data;
-        this.drawEcharts();
+        if (res.success) {
+          this.loading = false;
+          this.dataList = res.data;
+          this.drawEcharts();
+        }
       });
     },
     changeLineType(type) {
@@ -207,21 +232,23 @@ export default {
       }
     },
     changeDate(e) {
-      console.log(e);
+      this.dateList = e;
       this.switchLineType();
     },
     drawEcharts() {
-      let _this = this;
       const alist = this.dataList.alist;
       const blist = this.dataList.blist;
       const clist = this.dataList.clist;
-      // const nlist = this.dataList.nlist;
-      const legendData = [
-        alist[0].name,
-        blist[0].name,
-        clist[0].name,
-        // nlist[0].name,
-      ];
+
+      let legendData;
+      let unit;
+      if (!alist.length || !blist.length || !clist.length) {
+        legendData = ["暂无数据", "暂无数据", "暂无数据"];
+        unit = " ";
+      } else {
+        legendData = [alist[0].name, blist[0].name, clist[0].name];
+        unit = alist[0].unit;
+      }
 
       let myChart = this.$echarts.init(this.$refs.echarts);
 
@@ -231,12 +258,19 @@ export default {
         },
         legend: {
           data: legendData,
-          itemGap: 5,
+          itemGap: 80,
+          textStyle: {
+            fontSize: 16,
+            color: "#ffffff",
+          },
+          left: "5%",
+          top: "7%",
         },
+        color: ["#01aaaa", "#2190fe", "#f75dae"],
         grid: {
           top: "12%",
           left: "1%",
-          right: "10%",
+          right: "1%",
           containLabel: true,
         },
         xAxis: [
@@ -245,18 +279,42 @@ export default {
             data: alist.map((item) => {
               return item.actualTime;
             }),
+            spiltLine: {
+              show: true,
+            },
+            boundaryGap: false,
+            axisLabel: {
+              show: true,
+              textStyle: {
+                fontSize: 12,
+                color: "#657ea9",
+              },
+            },
+            axisLine: {
+              lineStyle: {
+                color: "#657ea9",
+              },
+            },
           },
         ],
         yAxis: [
           {
             type: "value",
-            // name: "Budget (million USD)",
+            name: "(" + unit + ")",
+            spiltLine: {
+              show: true,
+            },
+            boundaryGap: false,
             axisLabel: {
-              formatter: function (a) {
-                a = +a;
-                return isFinite(a)
-                  ? _this.$echarts.format.addCommas(+a / 1000)
-                  : "";
+              show: true,
+              textStyle: {
+                fontSize: 12,
+                color: "#657ea9",
+              },
+            },
+            axisLine: {
+              lineStyle: {
+                color: "#657ea9",
               },
             },
           },
@@ -268,49 +326,56 @@ export default {
             start: 94,
             end: 100,
             handleSize: 8,
+            textStyle: {
+              color: "#ffffff",
+            },
           },
           {
             type: "inside",
             start: 94,
             end: 100,
-          }
+            textStyle: {
+              color: "#ffffff",
+            },
+          },
         ],
         series: [
           {
-            name: alist[0].name,
+            name: legendData[0],
             type: "line",
+            smooth: true,
             data: alist.map((item) => {
               return item.value;
             }),
           },
           {
-            name: blist[0].name,
+            name: legendData[1],
             type: "line",
+            smooth: true,
             data: blist.map((item) => {
               return item.value;
             }),
           },
           {
-            name: clist[0].name,
+            name: legendData[2],
             type: "line",
+            smooth: true,
             data: clist.map((item) => {
               return item.value;
             }),
           },
-          // {
-          //   name: nlist[0].name,
-          //   type: "line",
-          //   data: nlist.map((item) => {
-          //     return item.value;
-          //   }),
-          // },
         ],
       };
 
-      myChart.setOption(option);
+      myChart.setOption(option, true);
+
+      window.onresize = function () {
+        myChart.resize();
+      };
     },
   },
   mounted() {
+    this.dateList = ["2021-06-01", "2021-07-30"];
     login({
       username: "portal",
       password:
@@ -329,7 +394,7 @@ export default {
 
 <style lang="less" scoped>
 @hei: 8.8vh;
-@blue: #2CC7F2;
+@blue: #2cc7f2;
 .yz-wrapper {
   width: 100vw;
   height: 100vh;
@@ -340,21 +405,23 @@ export default {
   .yz-header {
     height: @hei;
     position: relative;
-    .yz-header-img{
+    .yz-header-img {
       width: 100%;
       height: 100%;
       vertical-align: top;
     }
-    .back{
+    .back {
       position: absolute;
       top: 12px;
       right: 30px;
-      color: #2CC7F2;
       display: flex;
       align-items: center;
       cursor: pointer;
-      .back-icon{
+      .back-icon {
         margin-right: 10px;
+      }
+      .back-title {
+        color: @blue;
       }
     }
   }
@@ -367,10 +434,47 @@ export default {
       height: 100%;
       background: url("../../assets/img/bg-left.png");
       background-size: 100% 100%;
+      padding-top: 7.5vh;
       .el-menu {
         height: 100%;
         overflow-x: hidden;
         overflow-y: scroll;
+        border-right: 0;
+        /deep/.el-submenu__title {
+          padding-left: 2.3vw !important;
+          padding-right: 2.6vw;
+          &:focus,
+          &:hover {
+            background-color: transparent !important;
+          }
+          .nav-icon1 {
+            width: 22px;
+            margin-right: 14px;
+          }
+          .nav-title1 {
+            font-size: 1.852vh;
+            font-weight: 600;
+          }
+          .el-submenu__icon-arrow {
+            color: #ffffff;
+            right: 2.6vw;
+          }
+        }
+        /deep/.el-menu {
+          .el-menu-item {
+            padding-left: 5.73vw !important;
+            color: #999999 !important;
+            font-size: 1.666667vh;
+            &:focus,
+            &:hover,
+            &.is-active {
+              background-color: transparent;
+              background: url("../../assets/img/nav-active.png");
+              background-size: 100% 100%;
+              color: #ffffff !important;
+            }
+          }
+        }
       }
     }
     .yz-right {
@@ -388,32 +492,54 @@ export default {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        .power-type-wrapper{
+        .power-type-wrapper {
           width: 18.3vw;
           height: 4.72vh;
           padding: 0 1.25vw;
-      background: url("../../assets/img/bg-power.png");
-      background-size: 100% 100%;
+          background: url("../../assets/img/bg-power.png");
+          background-size: 100% 100%;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          .power-type-item{
+          .power-type-item {
             display: inline-block;
             padding: 0 0.63vw;
-            height: 100%;
-            line-height: 1;
-            border-bottom: 1px solid @blue;
+            height: 4.72vh;
+            line-height: 4.72vh;
+            border-bottom: 2px solid transparent;
+            color: @blue;
+            cursor: pointer;
+            &.active {
+              border-bottom: 2px solid @blue;
+            }
+          }
+        }
+        .el-input__inner {
+          background-color: transparent;
+          border: 1px solid @blue;
+          /deep/.el-range-input {
+            background: transparent;
+            color: @blue;
+          }
+          /deep/.el-range-separator {
+            color: @blue;
           }
         }
       }
       .line {
         width: 100%;
         height: 2.3vh;
+        img {
+          vertical-align: top;
+          width: 100%;
+          height: 2.3vh;
+        }
       }
       .echarts-wrapper {
         flex: auto;
         width: 100%;
-        height: 100%;
+        padding: 0 3.125vw;
+        height: 75vh;
         .echarts-box {
           width: 100%;
           height: 100%;

@@ -95,7 +95,7 @@ summary {
 html {
     -webkit-box-sizing: border-box;
     box-sizing: border-box;
-    /* font-size: 14px; */
+    font-size: 1.4815vh;
 }
 *,
 *:before,
